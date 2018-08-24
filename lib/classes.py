@@ -50,7 +50,6 @@ class Snake(object):
                 
         # body of snake  = list of snake's body's tiles in tile coordinate system
         self.body = [(head_position_x,head_position_y)] + [(head_position_x + i,head_position_y) for i in range(1,length)]
-        print(self.body)
         
         # color
         self.color = color
@@ -103,16 +102,15 @@ class Snake(object):
 class Snake_With_AI(object):
     '''Game class. Represent a game of snake.'''
     
-    def __init__(self):
+    def __init__(self,
+                 looping = True):
         self.board_color = WHITE
         self.food_color = RED
         self.clock = pg.time.Clock()
         self.screen = None
         self.snake = None
         self.food = None
-        
-    def start(self):
-        '''Called to start a new game.'''
+        self.looping = looping
         
         # --- set up pygame window
         #   start up pygame
@@ -124,31 +122,77 @@ class Snake_With_AI(object):
         # fill background
         self.screen.fill(self.board_color)
         
-        # --- draw game sprites
-        #   snake
-        self.snake = Snake()
-        self.snake.draw(self.screen)
+    def start(self):
+        '''Called to start a new game.'''
         
-        # first food
-        
-        # --- start game loop
+        # if game is looping, this loop causes infinite games
         while True:
-            #   handle events
-            if self.handle_events() == QUIT_GAME:
+            # --- draw game sprites
+            #   snake
+            self.snake = Snake()
+            self.snake.draw(self.screen)
+        
+            # first food
+            pass
+        
+            # manual stop control flag
+            manual_quit = False
+        
+            # --- start game loop    
+            while True:
+                #   handle events
+                if self.handle_events() == QUIT_GAME:
+                    manual_quit = True
+                    break
+                
+                #   update sprites
+                self.update()
+                
+                # check for snake collision
+                if self.has_snake_collided() == QUIT_GAME:
+                    break
+                
+                # check for snake growth
+                self.handle_snake_growth()
+                
+                #   draw new game state
+                self.draw()
+                
+                #   control speed
+                self.clock.tick(FPS)
+            
+            if not self.looping or (self.looping and manual_quit):
                 break
-            
-            #   update sprites
-            self.update()
-            
-            #   draw new game state
-            self.draw()
-            
-            #   control speed
-            self.clock.tick(FPS)
             
         #   end game
         pg.quit()
         sys.exit()
+        
+    def has_snake_collided(self):
+        '''Function that helps detect game ending scenarios like:
+            - snake hitting a wall
+            - snake hitting itself
+        Returns QUIT_GAME if either are true.'''
+        
+        # --- is snake hitting looping in on itself?
+        hitting_self = self.snake.body[0] in self.snake.body[1:]
+        
+        # --- is snake out of bounds?
+        snake_head = self.snake.body[0]
+        #   horizontal check
+        out_of_hor_bounds = (0 > snake_head[0]) or (WINDOW_WIDTH < snake_head[0])
+        # vertical check
+        out_of_ver_bounds = (0 > snake_head[1]) or (WINDOW_HEIGHT < snake_head[1])
+        
+        if any([hitting_self,out_of_hor_bounds,out_of_ver_bounds]):
+            return QUIT_GAME
+        else:
+            return
+    
+    def handle_snake_growth(self):
+        '''Function that handles snake getting the food.'''
+        
+        pass
         
     def update(self):
         '''Updates the game state.'''

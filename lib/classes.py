@@ -7,6 +7,7 @@ Created on Fri Aug 24 21:27:13 2018
 
 import pygame as pg
 import sys
+import random
 from settings import *
 
 def draw_tile(screen,
@@ -51,6 +52,9 @@ class Snake(object):
         # body of snake  = list of snake's body's tiles in tile coordinate system
         self.body = [(head_position_x,head_position_y)] + [(head_position_x + i,head_position_y) for i in range(1,length)]
         
+        # last frames tail of snake body - needed for eating logic
+        self.previous_tail = self.body[-1]
+        
         # color
         self.color = color
         
@@ -87,6 +91,9 @@ class Snake(object):
         #   insert new head
         self.body.insert(0,new_head_position)
         
+        #   update previous frame's tail
+        self.previous_tail = self.body[-1]
+        
         #   delete old tail
         self.body.pop(-1)
         
@@ -106,10 +113,12 @@ class Snake_With_AI(object):
                  looping = True):
         self.board_color = WHITE
         self.food_color = RED
+        self.text_color = BLACK
         self.clock = pg.time.Clock()
         self.screen = None
         self.snake = None
         self.food = None
+        self.score = None
         self.looping = looping
         
         # --- set up pygame window
@@ -122,6 +131,8 @@ class Snake_With_AI(object):
         # fill background
         self.screen.fill(self.board_color)
         
+        self.font = pg.font.Font('freesansbold.ttf',FONT_SIZE)
+        
     def start(self):
         '''Called to start a new game.'''
         
@@ -133,10 +144,13 @@ class Snake_With_AI(object):
             self.snake.draw(self.screen)
         
             # first food
-            pass
+            self.food = self.get_new_food_position()
         
             # manual stop control flag
             manual_quit = False
+            
+            # reset score
+            self.score = 0
         
             # --- start game loop    
             while True:
@@ -153,7 +167,7 @@ class Snake_With_AI(object):
                     break
                 
                 # check for snake growth
-                self.handle_snake_growth()
+                self.handle_snake_food()
                 
                 #   draw new game state
                 self.draw()
@@ -167,6 +181,37 @@ class Snake_With_AI(object):
         #   end game
         pg.quit()
         sys.exit()
+        
+    def handle_snake_food(self):
+        '''Function that handles distribution of new food and the snake colliding
+        with existing food.'''
+        
+        # --- check if snake has reached food
+        snake_head = self.snake.body[0]
+        previous_snake_tail = self.snake.previous_tail
+        
+        if snake_head == self.food:
+            # update score
+            self.score += 1
+            
+            # re-attach previous frame's tail to make snake grow
+            self.snake.body += [previous_snake_tail]
+            
+            # --- place new food object
+            self.food = self.get_new_food_position()
+        
+    def get_new_food_position(self):
+        '''Randomly creats a new location for food.'''
+        
+        # --- get random location on board
+        while True:
+            #   get random tile location on board
+            new_food = [random.randint(0,WINDOW_WIDTH-1),random.randint(0,WINDOW_HEIGHT-1)]
+            #   if not on snake body, use this valid location
+            if not (new_food in self.snake.body):
+                break
+
+        return new_food
         
     def has_snake_collided(self):
         '''Function that helps detect game ending scenarios like:
@@ -188,11 +233,6 @@ class Snake_With_AI(object):
             return QUIT_GAME
         else:
             return
-    
-    def handle_snake_growth(self):
-        '''Function that handles snake getting the food.'''
-        
-        pass
         
     def update(self):
         '''Updates the game state.'''
@@ -213,7 +253,24 @@ class Snake_With_AI(object):
         self.snake.draw(self.screen)
         
         # food
-        pass
+        draw_tile(self.screen,
+                  self.food,
+                  self.food_color)
+        
+        # --- score
+        #   get text
+        score_message = "Score: " + str(self.score)
+        #   get text surface
+        score_surf = self.font.render(score_message,
+                                      False,
+                                      self.text_color)
+        #   position text surface
+        score_rect = score_surf.get_rect()
+        score_rect.right = SCORE_OFF_X
+        score_rect.top = SCORE_OFF_Y
+        
+        self.screen.blit(score_surf,
+                         score_rect)
         
         # flip screen
         pg.display.flip()

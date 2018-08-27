@@ -5,10 +5,24 @@ Created on Fri Aug 24 21:27:13 2018
 @author: bettmensch
 """
 
+#Content
+# [0] Imports & dependencies
+# [1] Util function: draw_tile
+# [2] Object class: Snake (snake game sprite)
+# [3] Object class: Snake_With_AI (game/simulation)
+# [4] Util function: input_generator
+# [5] Util function: snake_ai
+
+#-------------------
+# [0] Imports & dependencies
+#-------------------
+
 import pygame as pg
 import sys
 import random
 from settings import *
+
+
 
 def draw_tile(screen,
               position,
@@ -32,6 +46,11 @@ def draw_tile(screen,
     pg.draw.rect(screen, color, positional_rect)
     
     return
+
+#-------------------
+# [1] Object class: Snake (snake game sprite)
+#-------------------
+
 
 class Snake(object):
     '''Represents the snake on a WINDOW_WIDTH x WINDOW_HEIGHT tiled board.'''
@@ -106,6 +125,10 @@ class Snake(object):
                       snake_tile_position,
                       self.color)
             
+#-------------------
+# [2] Object class: Snake_With_AI (game/simulation)
+#-------------------
+            
 class Snake_With_AI(object):
     '''Game class. Represent a simulation of a game of snake.
     Allows for playing normally, but also allows plugging in a (neural
@@ -113,13 +136,16 @@ class Snake_With_AI(object):
     can be used as a building block for a GA or RL based AI training routine.'''
     
     def __init__(self,
+                 fps = FPS,
                  looping = True,
                  use_ai = False,
                  max_frames = None,
                  ai = None,
-                 ai_input_generator = None):
+                 ai_input_generator = None,
+                 len_history = None):
         
         # --- essential params
+        self.fps = fps
         self.board_color = WHITE
         self.food_color = RED
         self.text_color = BLACK
@@ -145,6 +171,8 @@ class Snake_With_AI(object):
             self.looping = True # override potential False; no training routinge makes sense without repetitions
             self.n_frames_passed = None
             self.max_frames = max_frames # Training routine parameter; sensible unit to guarantee constant
+            self.history_len = history_len
+            self.state_history = None
             # attach piloting logic encoded in specified ai model
             self.ai = ai
             # attach function generating inputs for specified ai model
@@ -186,6 +214,10 @@ class Snake_With_AI(object):
             
             # reset score
             self.score = 0
+            
+            # initialize state history if needed
+            if self.using_ai:
+                self.initialize_state_history()
         
             # --- start game loop    
             while True:
@@ -194,14 +226,17 @@ class Snake_With_AI(object):
                     if self.n_frames_passed == self.max_frames:
                         simulation_quit = True
                         break
+                    
+                # record game state and add to history of recent n game states
+                if self.using_ai:
+                    self.record_current_state()
                 
-                #   handle events - snake pilot commands are produced & processed here
+                # handle events - snake pilot commands are produced & processed here; also, manualy closing the pygame window
                 if self.handle_events() == QUIT_GAME:
                     manual_quit = True
                     break
-                    
                 
-                #   update sprites - snake position is updated here
+                # update sprites - snake position is updated here
                 self.update()
                 
                 # check for snake collision
@@ -212,7 +247,7 @@ class Snake_With_AI(object):
                 self.draw()
                 
                 #   control speed
-                self.clock.tick(FPS)
+                self.clock.tick(self.FPS)
             
             if not self.using_ai:
                 if not self.looping or (self.looping and manual_quit):
@@ -333,7 +368,7 @@ class Snake_With_AI(object):
                 return QUIT_GAME
             
             # check for arrow keys pressed
-            if event.type == pg.KEYDOWN:
+            if event.type == pg.KEYDOWN and not self.using_ai:
                 if event.key == pg.K_UP and self.snake.direction in [LEFT,RIGHT]:
                     self.snake.direction = UP
                 if event.key == pg.K_DOWN and self.snake.direction in [LEFT,RIGHT]:
@@ -342,4 +377,94 @@ class Snake_With_AI(object):
                     self.snake.direction = LEFT
                 if event.key == pg.K_RIGHT and self.snake.direction in [UP,DOWN]:
                     self.snake.direction = RIGHT
-                
+        
+        # if in AI mode, get AI steering prediction
+        if self.using_ai:
+            # generate input for AI from raw game state history
+            ai_input = self.ai_input_generator(self.state_history)
+            # get AI steer
+            ai_output = self.ai(ai_input)
+            # apply AI steer
+            if ai_output == UP and self.snake.direction in [LEFT,RIGHT]:
+                self.snake.direction = UP
+            if ai_output == DOWN and self.snake.direction in [LEFT,RIGHT]:
+                self.snake.direction = DOWN
+            if ai_output == LEFT and self.snake.direction in [UP,DOWN]:
+                self.snake.direction = LEFT
+            if ai_output == RIGHT and self.snake.direction in [UP,DOWN]:
+                self.snake.direction = RIGHT
+                    
+    def initialize_state_history(self):
+        '''Util function that initializes the game's raw state history by padding
+        it with self.history_len empty states. This is needed so the AI can make
+        (generic) decisions at the beginning of each game when there are no past
+        game states.'''
+        
+        self.state_history = [{'snake_pos':None,
+                               'snake_dir':None,
+                               'food_pos':None,
+                               'score':None}] * self.history_len
+                    
+    def record_current_state(self):
+        '''Util function that saves the game state of the current frame and appends
+        it to the current game's state history. Needed to create raw data which is
+        then picked up by the ai input generator.'''
+        
+        current_state = {'snake_pos':self.snake.body,
+                         'snake_dir':self.snake.direction,
+                         'food_pos':self.food,
+                         'score':self.score}
+        
+        self.state_history.append(current_state)
+        
+#-------------------
+# [4] Util function: input_generator
+#-------------------
+        
+def flat_input_generator(raw_state,
+                         food_value=FOOD_VALUE,
+                         snake_value=SNAKE_VALUE):
+    '''Util function that takes the most recent raw snake game state and converts
+    it into a vector that quantifies 
+        - current snake position (in tile coordinate system)
+        - current snake direction
+        - current food position (in tile coordinate system)'''
+    
+    # --- build quantified board state
+    #   initialize tiled coordinate system
+    board_state = np.zeros((WINDOW_WIDTH,WINDOW_HEIGHT))
+    #   add food
+    food_tile_x, food_tile_y = raw_state['food_pos']
+    board_state[food_tile_x,food_tile_y] += FOOD_VALUE
+    #    add snake
+    for (snake_tile_x,snake_tile_y) in raw_state['snake_pos']:
+        board_state[snake_tile_x,snake_tile_y] += SNAKE_VALUE
+    # flatten board to vector
+    flat_board_state = board_state.reshape((1,-1))
+    
+    # --- build snake direction state
+    direction_template = np.array([UP,RIGHT,DOWN,LEFT]).reshape((1,-1))
+    snake_dir = np.array([raw_state['snake_dir']] * 4).reshape((1,-1))
+    flat_direction_state = (direction_template == snake_dir) * DIRECTION_VALUE
+    
+    # --- combine to total state
+    state = np.concatenate([flat_board_state,
+                            flat_direction_state],
+                            axis=1)
+    
+    return state
+
+        
+#-------------------
+# [5] Util function: snake_ai
+#-------------------
+
+def snake_ai_template(ffnetwork,
+                      input_state):
+    '''Util wrapper around specified FFNetwork that takes an input array of shape (1,d_input)
+    and return one of directional constants UP, DOWN, RIGHT or LEFT.'''
+    
+    # verify that network is ready
+    assert(ffnetwork.finalState)
+    
+    # 

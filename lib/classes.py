@@ -172,7 +172,7 @@ class Snake_With_AI(object):
             self.looping = True # override potential False; no training routinge makes sense without repetitions
             self.n_frames_passed = None
             self.max_frames = max_frames # Training routine parameter; sensible unit to guarantee constant
-            self.history_len = history_len
+            self.len_history = len_history
             self.state_history = None
             # attach piloting logic encoded in specified ai model
             self.ai = ai
@@ -196,6 +196,9 @@ class Snake_With_AI(object):
         
         # initialize total score
         self.total_score = 0
+        
+        # initialize frames passed
+        self.n_frames_passed = 0
         
         # if game is looping, this loop causes infinite games
         while True:
@@ -404,7 +407,7 @@ class Snake_With_AI(object):
         self.state_history = [{'snake_pos':None,
                                'snake_dir':None,
                                'food_pos':None,
-                               'score':None}] * self.history_len
+                               'score':None}] * self.len_history
                     
     def record_current_state(self):
         '''Util function that saves the game state of the current frame and appends
@@ -422,7 +425,7 @@ class Snake_With_AI(object):
 # [4] Util function: input_generator
 #-------------------
         
-def flat_input_generator(raw_state,
+def flat_input_generator(raw_history,
                          food_value=FOOD_VALUE,
                          snake_value=SNAKE_VALUE):
     '''Util function that takes the most recent raw snake game state and converts
@@ -431,15 +434,22 @@ def flat_input_generator(raw_state,
         - current snake direction
         - current food position (in tile coordinate system)'''
     
+    # get most recent raw state
+    raw_state = raw_history[-1]
+    
     # --- build quantified board state
     #   initialize tiled coordinate system
     board_state = np.zeros((WINDOW_WIDTH,WINDOW_HEIGHT))
     #   add food
+    #print("Food pos:",raw_state['food_pos'])
     food_tile_x, food_tile_y = raw_state['food_pos']
+    
     board_state[food_tile_x,food_tile_y] += FOOD_VALUE
     #    add snake
     for (snake_tile_x,snake_tile_y) in raw_state['snake_pos']:
-        board_state[snake_tile_x,snake_tile_y] += SNAKE_VALUE
+        # verify tile is on board
+        if (snake_tile_x in range(WINDOW_WIDTH)) and (snake_tile_y in range(WINDOW_HEIGHT)):
+            board_state[snake_tile_x,snake_tile_y] += SNAKE_VALUE
     # flatten board to vector
     flat_board_state = board_state.reshape((1,-1))
     
@@ -459,7 +469,7 @@ def flat_input_generator(raw_state,
 # [5] Util function: snake_ai
 #-------------------
 
-def snake_ai(ffnetwork,
+def ai_from_ffnetwork(ffnetwork,
              input_state):
     '''Util wrapper around specified FFNetwork that takes an input array of shape (1,d_input)
     and return one of directional constants UP, DOWN, RIGHT or LEFT.'''
@@ -469,7 +479,10 @@ def snake_ai(ffnetwork,
     
     # get prediction array
     prediction = ffnetwork.predict(input_state)
+    print("Network prediction:", prediction)
     # get direction
     direction = DIRECTION_TEMPLATE[0,prediction][0,0]
+    
+    print("Network direction:", direction)
     
     return direction

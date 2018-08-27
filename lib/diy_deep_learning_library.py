@@ -1379,10 +1379,16 @@ class GA(object):
         
         # select gene data, i.e. the inputs to the cost function
         dna_cols = ['gene' + str(i+1) for i in range(self.dna_seq_len)]
+        n_gen = current_gen['n_gen'][0]
         x = current_gen[dna_cols].values
         
         # assess genes via cost function
-        scores = [cost_function(x_i.reshape((-1,self.dna_seq_len))) for x_i in x]
+        scores = []
+        n_pop = x.shape[0]
+        for i,x_i in enumerate(x):
+            print("Evaluating gene " + str(i) + " / " + str(n_pop) + " | Generation " + str(n_gen))
+            score_i = cost_function(x_i.reshape((-1,self.dna_seq_len)))
+            scores.append(score_i)
         
         # --- scores
         #   attach gene scores
@@ -1420,6 +1426,8 @@ class GeneWeightTranslator(object):
         #   parameter counts of optimizable weights & biases
         self.layer_weight_sizes = [(np.prod(shape_w),
                                     np.prod(shape_b)) for (shape_w,shape_b) in self.layer_weight_shapes]
+    
+        print(self.layer_weight_sizes)
     
         #   dna sequence length = number of all optimizable parameters in network
         self.dna_seq_len = np.sum(self.layer_weight_sizes)
@@ -1461,7 +1469,7 @@ class GeneWeightTranslator(object):
         #   cut off chunks and reshape into weights and biases
         for (size_w, size_b),(shape_w,shape_b) in zip(self.layer_weight_sizes,self.layer_weight_shapes):
             # get chunk needed for current layer's parameters
-            current_layer_chunk = gene[:size_w + size_b]
+            current_layer_chunk = gene[0,:size_w + size_b]
             # recreate weight
             weight = current_layer_chunk[:size_w].reshape(shape_w)
             bias = current_layer_chunk[size_w:].reshape(shape_b)
@@ -1470,7 +1478,7 @@ class GeneWeightTranslator(object):
             converted_weights.append((weight,bias))
             
             # update gene, i.e. drop used chunk
-            gene = gene[size_w + size_b:]
+            gene = gene[0,size_w + size_b:].reshape((1,-1))
             
         return converted_weights
         
@@ -1490,7 +1498,7 @@ class GeneWeightTranslator(object):
             
         gene = np.concatenate(gene_segments,axis=1)
         
-        return gene
+        return gene[0]
 
     #def _get_gene_initializer(self):
     #    '''Util function that constructs and returns a gene initializer as described

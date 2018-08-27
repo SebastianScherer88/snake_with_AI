@@ -23,6 +23,7 @@ import sys
 import random
 from settings import *
 from functools import partial
+from diy_deep_learning_library import FFNetwork
 
 
 def draw_tile(screen,
@@ -360,6 +361,22 @@ class Snake_With_AI(object):
         self.screen.blit(score_surf,
                          score_rect)
         
+        # --- total score
+        if self.using_ai:
+            #   get text
+            score_message = "Total gene's score: " + str(self.total_score)
+            #   get text surface
+            score_surf = self.font.render(score_message,
+                                          False,
+                                          self.text_color)
+            #   position text surface
+            score_rect = score_surf.get_rect()
+            score_rect.right = TILE_WIDTH
+            score_rect.top = SCORE_OFF_Y
+        
+        self.screen.blit(score_surf,
+                         score_rect)
+        
         # flip screen
         pg.display.flip()
     
@@ -421,7 +438,7 @@ class Snake_With_AI(object):
         
         # update and cut down to size
         self.state_history.append(current_state)
-        self.state_history = self.state_history[:self.len_history]
+        self.state_history = self.state_history[-self.len_history:]
         
 #-------------------
 # [4] Util function: input_generator
@@ -526,16 +543,19 @@ def build_ai_simulation_tools():
 # [7] Util function:  build genetic algorithm cost function for AI snake task
 #--------------------------------------------------------------
     
-def build_ai_simulation_cost_function(genes_to_weight_translator,
-                              neural_net,
-                              neural_input_generator,
-                              neural_ai,
-                              gene):
+def build_ai_simulation_cost_function(gene,
+                                      genes_to_weight_translator,
+                                      neural_net,
+                                      neural_input_generator,
+                                      neural_ai):
     '''Util function to which we will apply the functools::partial function to 
     obtain a cost function suitabel for the AI snake genetic algorithm evolution.'''
     
     # verify that translator was built on the network specified as argument
     assert(genes_to_weight_translator.ffnetwork == neural_net)
+    
+    #print('Gene shape:',gene.shape)
+    #print('Gene shape:',gene[0].shape)
     
     # --- genes -----> cost function value pipeline
     #   convert genes to weights
@@ -546,8 +566,8 @@ def build_ai_simulation_cost_function(genes_to_weight_translator,
     
     #   set up simulation
     gene_score = Snake_With_AI(ai=neural_ai,
-                               ai_n_input_generator=neural_input_generator).start()
+                               ai_input_generator=neural_input_generator).start()
     
-    return gene_score
+    return float(gene_score)
     
     

@@ -10,6 +10,7 @@ Created on Mon Aug 27 20:27:33 2018
 #--------------------------------------------------------------
 
 from functools import partial
+from settings import *
 from classes import build_ai_simulation_tools, build_ai_simulation_cost_function
 from diy_deep_learning_library import GeneWeightTranslator, GA
 

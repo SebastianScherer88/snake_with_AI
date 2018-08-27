@@ -371,7 +371,7 @@ class Snake_With_AI(object):
                                           self.text_color)
             #   position text surface
             score_rect = score_surf.get_rect()
-            score_rect.right = TILE_WIDTH
+            score_rect.left = TILE_WIDTH
             score_rect.top = SCORE_OFF_Y
         
         self.screen.blit(score_surf,

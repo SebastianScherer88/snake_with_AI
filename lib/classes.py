@@ -107,10 +107,19 @@ class Snake(object):
                       self.color)
             
 class Snake_With_AI(object):
-    '''Game class. Represent a game of snake.'''
+    '''Game class. Represent a simulation of a game of snake.
+    Allows for playing normally, but also allows plugging in a (neural
+    network based) AI of a certain format to run simulations. In particular,
+    can be used as a building block for a GA or RL based AI training routine.'''
     
     def __init__(self,
-                 looping = True):
+                 looping = True,
+                 use_ai = False,
+                 max_frames = None,
+                 ai = None,
+                 ai_input_generator = None):
+        
+        # --- essential params
         self.board_color = WHITE
         self.food_color = RED
         self.text_color = BLACK
@@ -119,7 +128,27 @@ class Snake_With_AI(object):
         self.snake = None
         self.food = None
         self.score = None
+        self.total_score = None
         self.looping = looping
+        self.using_ai = False
+        
+        # --- training routine mode params & methods
+        
+        # make sure all tools are specified to make AI training routine feasible
+        if use_ai:
+            assert(all([max_frames != None,
+                        ai != None,
+                        ai_input_generator != None]))
+            # switch flick
+            self.using_ai = True
+            # training routing tracking params
+            self.looping = True # override potential False; no training routinge makes sense without repetitions
+            self.n_frames_passed = None
+            self.max_frames = max_frames # Training routine parameter; sensible unit to guarantee constant
+            # attach piloting logic encoded in specified ai model
+            self.ai = ai
+            # attach function generating inputs for specified ai model
+            self.ai_input_generator = ai_input_generator
         
         # --- set up pygame window
         #   start up pygame
@@ -136,6 +165,9 @@ class Snake_With_AI(object):
     def start(self):
         '''Called to start a new game.'''
         
+        # initialize total score
+        self.total_score = 0
+        
         # if game is looping, this loop causes infinite games
         while True:
             # --- draw game sprites
@@ -146,28 +178,35 @@ class Snake_With_AI(object):
             # first food
             self.food = self.get_new_food_position()
         
-            # manual stop control flag
+            # --- stop flags
+            #    manual stop control flag
             manual_quit = False
+            #    simluation stop flag if appropriate
+            simulation_quit = False
             
             # reset score
             self.score = 0
         
             # --- start game loop    
             while True:
-                #   handle events
+                # if in AI mode, check if max frame number has been reached
+                if self.using_ai:
+                    if self.n_frames_passed == self.max_frames:
+                        simulation_quit = True
+                        break
+                
+                #   handle events - snake pilot commands are produced & processed here
                 if self.handle_events() == QUIT_GAME:
                     manual_quit = True
                     break
+                    
                 
-                #   update sprites
+                #   update sprites - snake position is updated here
                 self.update()
                 
                 # check for snake collision
                 if self.has_snake_collided() == QUIT_GAME:
                     break
-                
-                # check for snake growth
-                self.handle_snake_food()
                 
                 #   draw new game state
                 self.draw()
@@ -175,12 +214,17 @@ class Snake_With_AI(object):
                 #   control speed
                 self.clock.tick(FPS)
             
-            if not self.looping or (self.looping and manual_quit):
-                break
+            if not self.using_ai:
+                if not self.looping or (self.looping and manual_quit):
+                    break
+            elif self.using_ai:
+                if simulation_quit or manual_quit:
+                    break
             
-        #   end game
+        #   end (looping) game / simulation
         pg.quit()
-        sys.exit()
+        
+        return self.total_score
         
     def handle_snake_food(self):
         '''Function that handles distribution of new food and the snake colliding
@@ -191,8 +235,9 @@ class Snake_With_AI(object):
         previous_snake_tail = self.snake.previous_tail
         
         if snake_head == self.food:
-            # update score
+            # update scores
             self.score += 1
+            self.total_score += 1
             
             # re-attach previous frame's tail to make snake grow
             self.snake.body += [previous_snake_tail]
@@ -237,11 +282,15 @@ class Snake_With_AI(object):
     def update(self):
         '''Updates the game state.'''
         
+        # update frame counter if appropriate
+        if self.using_ai:
+            self.n_frames_passed += 1
+        
         # snake
         self.snake.update()
         
         # food
-        pass
+        self.handle_snake_food()
     
     def draw(self):
         '''Draws new game state.'''

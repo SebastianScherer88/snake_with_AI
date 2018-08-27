@@ -13,7 +13,10 @@ def main():
     new_game = Snake_With_AI()
     
     # start game
-    new_game.start()
+    total_score = new_game.start()
+    
+    # print total score
+    print("Total score:", total_score)
     
 if __name__ == '__main__':
     main()

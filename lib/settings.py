@@ -5,6 +5,8 @@ Created on Fri Aug 24 21:23:03 2018
 @author: bettmensch
 """
 
+import numpy as np
+
 # --- dimensions
 WINDOW_WIDTH_PIXELS = 400
 WINDOW_HEIGHT_PIXELS = 400
@@ -39,3 +41,4 @@ SCORE_OFF_Y = TILE_HEIGHT
 SNAKE_VALUE = 1
 FOOD_VALUE = -1
 DIRECTION_VALUE = 1
+DIRECTION_TEMPLATE = np.array([UP,RIGHT,DOWN,LEFT]).reshape((1,-1))

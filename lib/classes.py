@@ -18,6 +18,7 @@ Created on Fri Aug 24 21:27:13 2018
 #-------------------
 
 import pygame as pg
+import numpy as np
 import sys
 import random
 from settings import *
@@ -247,7 +248,7 @@ class Snake_With_AI(object):
                 self.draw()
                 
                 #   control speed
-                self.clock.tick(self.FPS)
+                self.clock.tick(self.fps)
             
             if not self.using_ai:
                 if not self.looping or (self.looping and manual_quit):
@@ -443,9 +444,8 @@ def flat_input_generator(raw_state,
     flat_board_state = board_state.reshape((1,-1))
     
     # --- build snake direction state
-    direction_template = np.array([UP,RIGHT,DOWN,LEFT]).reshape((1,-1))
     snake_dir = np.array([raw_state['snake_dir']] * 4).reshape((1,-1))
-    flat_direction_state = (direction_template == snake_dir) * DIRECTION_VALUE
+    flat_direction_state = (DIRECTION_TEMPLATE == snake_dir) * DIRECTION_VALUE
     
     # --- combine to total state
     state = np.concatenate([flat_board_state,
@@ -459,12 +459,17 @@ def flat_input_generator(raw_state,
 # [5] Util function: snake_ai
 #-------------------
 
-def snake_ai_template(ffnetwork,
-                      input_state):
+def snake_ai(ffnetwork,
+             input_state):
     '''Util wrapper around specified FFNetwork that takes an input array of shape (1,d_input)
     and return one of directional constants UP, DOWN, RIGHT or LEFT.'''
     
     # verify that network is ready
     assert(ffnetwork.finalState)
     
-    # 
+    # get prediction array
+    prediction = ffnetwork.predict(input_state)
+    # get direction
+    direction = DIRECTION_TEMPLATE[0,prediction][0,0]
+    
+    return direction

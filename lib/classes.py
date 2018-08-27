@@ -23,7 +23,6 @@ import sys
 import random
 from settings import *
 from functools import partial
-from diy_deep_learning_library import GeneWeightTranslator
 
 
 def draw_tile(screen,
@@ -140,11 +139,11 @@ class Snake_With_AI(object):
     def __init__(self,
                  fps = FPS,
                  looping = True,
-                 use_ai = False,
-                 max_frames = None,
+                 use_ai = True,
+                 max_frames = MAX_FRAMES,
                  ai = None,
                  ai_input_generator = None,
-                 len_history = None):
+                 len_history = 1):
         
         # --- essential params
         self.fps = fps
@@ -524,26 +523,31 @@ def build_ai_simulation_tools():
     return neural_net, neural_input_generator, neural_ai
 
 #--------------------------------------------------------------
-# [7] Util function:  build genetic algorithm cost function
+# [7] Util function:  build genetic algorithm cost function for AI snake task
 #--------------------------------------------------------------
     
-def build_ga_cost_function():
-    '''Util function that builds and returns a cost function for the genetic
-    algorithm.'''
+def build_ai_simulation_cost_function(genes_to_weight_translator,
+                              neural_net,
+                              neural_input_generator,
+                              neural_ai,
+                              gene):
+    '''Util function to which we will apply the functools::partial function to 
+    obtain a cost function suitabel for the AI snake genetic algorithm evolution.'''
     
-    # build snake AI simulation tools
-    net, net_input_generator, net_ai = build_ai_simulation_tools()
+    # verify that translator was built on the network specified as argument
+    assert(genes_to_weight_translator.ffnetwork == neural_net)
     
-    # set up Snake simulation with AI tools
-    Snake_With_AI(fps = FPS,
-                  looping = True,
-                  use_ai = True,
-                  max_frames = MAX_FRAMES,
-                  ai = net_ai,
-                  ai_input_generator = net_input_generator,
-                  len_history = 1)
+    # --- genes -----> cost function value pipeline
+    #   convert genes to weights
+    weights = genes_to_weight_translator.gene_to_weights(gene)
     
-    # get gene <-> translator
-    translator = GeneWeightTranslator(net)
+    #   set neural network weights
+    genes_to_weight_translator.set_current_weights(weights)# the weights of 'neural_net' are being set here!
+    
+    #   set up simulation
+    gene_score = Snake_With_AI(ai=neural_ai,
+                               ai_n_input_generator=neural_input_generator).start()
+    
+    return gene_score
     
     

@@ -22,7 +22,8 @@ import numpy as np
 import sys
 import random
 from settings import *
-
+from functools import partial
+from diy_deep_learning_library import GeneWeightTranslator
 
 
 def draw_tile(screen,
@@ -419,7 +420,9 @@ class Snake_With_AI(object):
                          'food_pos':self.food,
                          'score':self.score}
         
+        # update and cut down to size
         self.state_history.append(current_state)
+        self.state_history = self.state_history[:self.len_history]
         
 #-------------------
 # [4] Util function: input_generator
@@ -479,10 +482,68 @@ def ai_from_ffnetwork(ffnetwork,
     
     # get prediction array
     prediction = ffnetwork.predict(input_state)
-    print("Network prediction:", prediction)
     # get direction
     direction = DIRECTION_TEMPLATE[0,prediction][0,0]
     
-    print("Network direction:", direction)
-    
     return direction
+
+#--------------------------------------------------------------
+# [6] Util function:  build AI simulation dependencies
+#--------------------------------------------------------------
+    
+def build_ai_simulation_tools():
+    '''Util function that produces tools and inputs needed for the AI snake 
+    simulation.'''
+
+    # --- build neural net
+    input_size = WINDOW_HEIGHT * WINDOW_WIDTH + np.prod((DIRECTION_TEMPLATE.shape))
+    
+    neural_net = FFNetwork()
+    
+    # bogus data sample; needed to fixate net
+    X_sample = np.random.normal(size=(10,input_size))
+    
+    neural_net.addFCLayer(N1,activation='tanh')
+    neural_net.addDropoutLayer(DROPOUTRATE1)
+    neural_net.addFCLayer(N2,activation='tanh')
+    neural_net.addDropoutLayer(DROPOUTRATE2)
+    neural_net.addFCLayer(N3,activation='softmax')
+    
+    # fixate and flick training switch
+    neural_net.fixateNetwork(X_sample)
+    neural_net.trained = True
+
+    print(neural_net)
+
+    # --- input generator
+    neural_input_generator = flat_input_generator
+    
+    # --- neural net based snake ai
+    neural_ai = partial(ai_from_ffnetwork,neural_net)
+    
+    return neural_net, neural_input_generator, neural_ai
+
+#--------------------------------------------------------------
+# [7] Util function:  build genetic algorithm cost function
+#--------------------------------------------------------------
+    
+def build_ga_cost_function():
+    '''Util function that builds and returns a cost function for the genetic
+    algorithm.'''
+    
+    # build snake AI simulation tools
+    net, net_input_generator, net_ai = build_ai_simulation_tools()
+    
+    # set up Snake simulation with AI tools
+    Snake_With_AI(fps = FPS,
+                  looping = True,
+                  use_ai = True,
+                  max_frames = MAX_FRAMES,
+                  ai = net_ai,
+                  ai_input_generator = net_input_generator,
+                  len_history = 1)
+    
+    # get gene <-> translator
+    translator = GeneWeightTranslator(net)
+    
+    

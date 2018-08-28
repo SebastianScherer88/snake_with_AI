@@ -44,6 +44,6 @@ snake_ga = GA(gene_weight_trans.dna_seq_len)
 
 # start evolution
 snake_ga.evolve(cost_function = gene_score_function,
-               max_gens = N_GENERATIONS,
+               max_gens = 5,
                n_pop = N_POP,
                mutation_rate = MUTATION_RATE)

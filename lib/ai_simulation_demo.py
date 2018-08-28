@@ -21,7 +21,7 @@ from settings import *
 # [1] Build snake piloting network
 #----------------------------------------------------------------------
 
-input_size = WINDOW_HEIGHT * WINDOW_WIDTH + np.prod((DIRECTION_TEMPLATE.shape))
+input_size = WINDOW_HEIGHT * WINDOW_WIDTH + 4
 
 neural_net = FFNetwork()
 
@@ -30,15 +30,11 @@ X_sample = np.random.normal(size=(10,input_size))
 
 n1 = 100
 dropoutRate1 = 0.4
-n2 = 100
-dropoutRate2 = 0.4
-n3 = 4
+n2 = 3
 
 neural_net.addFCLayer(n1,activation='tanh')
 neural_net.addDropoutLayer(dropoutRate1)
-neural_net.addFCLayer(n2,activation='tanh')
-neural_net.addDropoutLayer(dropoutRate2)
-neural_net.addFCLayer(n3,activation='softmax')
+neural_net.addFCLayer(n2,activation='softmax')
 
 neural_net.fixateNetwork(X_sample)
 neural_net.trained = True
@@ -63,7 +59,7 @@ neural_ai = partial(ai_from_ffnetwork,neural_net)
 #    max frames
 max_frames = 500
 #   fps
-fps = FPS
+fps = 10
 #   length of game state history needed
 len_history = 1
 

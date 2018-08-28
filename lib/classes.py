@@ -144,7 +144,9 @@ class Snake_With_AI(object):
                  max_frames = MAX_FRAMES,
                  ai = None,
                  ai_input_generator = None,
-                 len_history = 1):
+                 len_history = 1,
+                 visuals = True,
+                 speed_limit = True):
         
         # --- essential params
         self.fps = fps
@@ -159,6 +161,8 @@ class Snake_With_AI(object):
         self.total_score = None
         self.looping = looping
         self.using_ai = False
+        self.visuals = visuals
+        self.speed_limit = speed_limit
         
         # --- training routine mode params & methods
         
@@ -183,14 +187,16 @@ class Snake_With_AI(object):
         # --- set up pygame window
         #   start up pygame
         pg.init()
-        # intialize graphic window
-        self.screen = pg.display.set_mode((WINDOW_WIDTH_PIXELS,WINDOW_HEIGHT_PIXELS))
-        #   set caption
-        pg.display.set_caption("SNAKE WITH AI")
-        # fill background
-        self.screen.fill(self.board_color)
         
-        self.font = pg.font.Font('freesansbold.ttf',FONT_SIZE)
+        if self.visuals:
+            # intialize graphic window
+            self.screen = pg.display.set_mode((WINDOW_WIDTH_PIXELS,WINDOW_HEIGHT_PIXELS))
+            #   set caption
+            pg.display.set_caption("SNAKE WITH AI")
+            # fill background
+            self.screen.fill(self.board_color)
+            
+            self.font = pg.font.Font('freesansbold.ttf',FONT_SIZE)
         
     def start(self):
         '''Called to start a new game.'''
@@ -206,7 +212,8 @@ class Snake_With_AI(object):
             # --- draw game sprites
             #   snake
             self.snake = Snake()
-            self.snake.draw(self.screen)
+            if self.visuals:
+                self.snake.draw(self.screen)
         
             # first food
             self.food = self.get_new_food_position()
@@ -249,10 +256,12 @@ class Snake_With_AI(object):
                     break
                 
                 #   draw new game state
-                self.draw()
+                if self.visuals:
+                    self.draw()
                 
                 #   control speed
-                self.clock.tick(self.fps)
+                if self.speed_limit:
+                    self.clock.tick(self.fps)
             
             if not self.using_ai:
                 if not self.looping or (self.looping and manual_quit):
@@ -404,16 +413,10 @@ class Snake_With_AI(object):
             # generate input for AI from raw game state history
             ai_input = self.ai_input_generator(self.state_history)
             # get AI steer
-            ai_output = self.ai(ai_input)
+            ai_turn = self.ai(ai_input)
             # apply AI steer
-            if ai_output == UP and self.snake.direction in [LEFT,RIGHT]:
-                self.snake.direction = UP
-            if ai_output == DOWN and self.snake.direction in [LEFT,RIGHT]:
-                self.snake.direction = DOWN
-            if ai_output == LEFT and self.snake.direction in [UP,DOWN]:
-                self.snake.direction = LEFT
-            if ai_output == RIGHT and self.snake.direction in [UP,DOWN]:
-                self.snake.direction = RIGHT
+            current_direction = self.snake.direction
+            self.snake.direction = APPLY_AI_STEER[(ai_turn,current_direction)]
                     
     def initialize_state_history(self):
         '''Util function that initializes the game's raw state history by padding
@@ -499,7 +502,7 @@ def ai_from_ffnetwork(ffnetwork,
     # get prediction array
     prediction = ffnetwork.predict(input_state)
     # get direction
-    direction = DIRECTION_TEMPLATE[0,prediction][0,0]
+    direction = TURN_TEMPLATE[0,prediction][0,0]
     
     return direction
 
@@ -521,9 +524,7 @@ def build_ai_simulation_tools():
     
     neural_net.addFCLayer(N1,activation='tanh')
     neural_net.addDropoutLayer(DROPOUTRATE1)
-    neural_net.addFCLayer(N2,activation='tanh')
-    neural_net.addDropoutLayer(DROPOUTRATE2)
-    neural_net.addFCLayer(N3,activation='softmax')
+    neural_net.addFCLayer(N2,activation='softmax')
     
     # fixate and flick training switch
     neural_net.fixateNetwork(X_sample)
@@ -566,7 +567,9 @@ def build_ai_simulation_cost_function(gene,
     
     #   set up simulation
     gene_score = Snake_With_AI(ai=neural_ai,
-                               ai_input_generator=neural_input_generator).start()
+                               ai_input_generator=neural_input_generator,
+                               visuals=False,
+                               speed_limit=False).start()
     
     return float(gene_score)
     

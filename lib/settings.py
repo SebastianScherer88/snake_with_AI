@@ -42,12 +42,23 @@ MAX_FRAMES = 1000
 SNAKE_VALUE = 1
 FOOD_VALUE = -1
 DIRECTION_VALUE = 1
-DIRECTION_TEMPLATE = np.array([UP,RIGHT,DOWN,LEFT]).reshape((1,-1))
-N1 = 100
-N2 = 50
-N3 = 4
+DIRECTION_TEMPLATE = np.array([DOWN,LEFT,UP,RIGHT]).reshape((1,-1))
+TURN_TEMPLATE = np.array([LEFT,UP,RIGHT]).reshape((1,-1))
+N1 = 50
+N2 = 3
 DROPOUTRATE1 = 0.4
-DROPOUTRATE2 = 0.4
+APPLY_AI_STEER = {(UP,UP):UP, # (turn_direction, current_direction) -> new_direction
+                  (UP,LEFT):LEFT,
+                  (UP,RIGHT):RIGHT,
+                  (UP,DOWN):DOWN,
+                  (LEFT,UP):LEFT,
+                  (LEFT,LEFT):DOWN,
+                  (LEFT,RIGHT):UP,
+                  (LEFT,DOWN):RIGHT,
+                  (RIGHT,UP):RIGHT,
+                  (RIGHT,LEFT):UP,
+                  (RIGHT,RIGHT):DOWN,
+                  (RIGHT,DOWN):LEFT}
 
 # --- GA constants
 N_GENERATIONS = 100

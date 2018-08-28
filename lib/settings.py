@@ -60,6 +60,6 @@ APPLY_AI_STEER = {(UP,UP):UP, # (turn_direction, current_direction) -> new_direc
                   (RIGHT,DOWN):LEFT}
 
 # --- GA constants
-N_GENERATIONS = 100
+N_GENERATIONS = 30
 N_POP = 30
-MUTATION_RATE = 0.2
+MUTATION_RATE = 0.5

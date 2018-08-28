@@ -44,9 +44,8 @@ FOOD_VALUE = -1
 DIRECTION_VALUE = 1
 DIRECTION_TEMPLATE = np.array([DOWN,LEFT,UP,RIGHT]).reshape((1,-1))
 TURN_TEMPLATE = np.array([LEFT,UP,RIGHT]).reshape((1,-1))
-N1 = 50
+N1 = 100
 N2 = 3
-DROPOUTRATE1 = 0.4
 APPLY_AI_STEER = {(UP,UP):UP, # (turn_direction, current_direction) -> new_direction
                   (UP,LEFT):LEFT,
                   (UP,RIGHT):RIGHT,
@@ -62,5 +61,5 @@ APPLY_AI_STEER = {(UP,UP):UP, # (turn_direction, current_direction) -> new_direc
 
 # --- GA constants
 N_GENERATIONS = 100
-N_POP = 50
+N_POP = 30
 MUTATION_RATE = 0.2

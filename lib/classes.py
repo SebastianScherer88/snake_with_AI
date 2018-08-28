@@ -253,6 +253,7 @@ class Snake_With_AI(object):
                 
                 # check for snake collision
                 if self.has_snake_collided() == QUIT_GAME:
+                    self.total_score = max(0,self.total_score - 1)
                     break
                 
                 #   draw new game state
@@ -523,7 +524,6 @@ def build_ai_simulation_tools():
     X_sample = np.random.normal(size=(10,input_size))
     
     neural_net.addFCLayer(N1,activation='tanh')
-    neural_net.addDropoutLayer(DROPOUTRATE1)
     neural_net.addFCLayer(N2,activation='softmax')
     
     # fixate and flick training switch

@@ -29,11 +29,9 @@ neural_net = FFNetwork()
 X_sample = np.random.normal(size=(10,input_size))
 
 n1 = 100
-dropoutRate1 = 0.4
 n2 = 3
 
 neural_net.addFCLayer(n1,activation='tanh')
-neural_net.addDropoutLayer(dropoutRate1)
 neural_net.addFCLayer(n2,activation='softmax')
 
 neural_net.fixateNetwork(X_sample)

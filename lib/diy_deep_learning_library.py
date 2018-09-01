@@ -72,6 +72,9 @@ def softmaxLoss(P,Y):
 
 def sigmoidLoss(P,Y):
     return -np.mean(np.sum(np.multiply(Y,np.log(P)) + np.multiply((1 - Y),np.log(1 - P)),axis=1))
+
+def l2Loss(P,Y):
+    return 0.5 * (np.linalg.norm(P - Y,ord=2) ** 2) / P.shape[0]
     
 class SGD(object):
     '''Class representing the stochastic gradient descent with momentum algorithm'''
@@ -878,6 +881,7 @@ class FFNetwork(object):
         self.dataType = None # will indicate wether flattened feature vectors or high dim image tensors
         self.finalState = False
         self.trained = False
+        self.classes_ordered = None
         
     def __str__(self):
         '''Print out structure of neural net (if it has been fixated).'''
@@ -1066,8 +1070,16 @@ class FFNetwork(object):
     def oneHotY(self,y):
         '''One hot vectorizes a target class index list into a [nData,nClasses] array.'''
         
-        nClasses = len(np.unique(y.reshape(-1)))
-        Y = np.eye(nClasses)[y.reshape(-1)]
+        # if first time training on classification data with one-hot enabled, remember ordering of class labels used for training
+        if str(type(self.classes_ordered)) == "<class 'NoneType'>":
+            self.classes_ordered = np.unique(y).reshape(-1)
+            
+        # convert class labels into indices as specified in classes_ordered attribute
+        y_numeric = np.array([np.where(self.classes_ordered == y_i)[0][0] for y_i in y]).reshape(-1)
+        
+        # create one-hot encoded target matrix from class labels y and class label <-> class index assignment rule stored in classes_ordered attribute
+        nClasses = len(self.classes_ordered)
+        Y = np.eye(nClasses)[y_numeric]
         
         return Y
     

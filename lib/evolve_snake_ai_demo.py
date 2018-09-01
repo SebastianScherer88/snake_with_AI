@@ -48,7 +48,7 @@ snake_ga = GA(gene_weight_trans.dna_seq_len)
 
 # start evolution
 snake_ga.evolve(cost_function = gene_score_function,
-               max_gens = 10,
+               max_gens = N_GENERATIONS,
                n_pop = N_POP,
                mutation_rate = MUTATION_RATE)
 
@@ -88,6 +88,6 @@ Snake_With_AI(fps = 15,
                  max_frames = 1000,
                  ai = neural_ai,
                  ai_input_generator = neural_input_generator,
-                 len_history = 1,
+                 len_history = N_INPUT_FRAMES,
                  visuals = True,
                  speed_limit = True).start()

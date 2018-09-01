@@ -144,7 +144,7 @@ class Snake_With_AI(object):
                  max_frames = MAX_FRAMES,
                  ai = None,
                  ai_input_generator = None,
-                 len_history = 1,
+                 len_history = N_INPUT_FRAMES,
                  visuals = True,
                  speed_limit = True):
         
@@ -425,10 +425,10 @@ class Snake_With_AI(object):
         (generic) decisions at the beginning of each game when there are no past
         game states.'''
         
-        self.state_history = [{'snake_pos':None,
-                               'snake_dir':None,
-                               'food_pos':None,
-                               'score':None}] * self.len_history
+        self.state_history = [{'snake_pos':[0,0],
+                               'snake_dir':LEFT,
+                               'food_pos':[0,0],
+                               'score':0}] * self.len_history
                     
     def record_current_state(self):
         '''Util function that saves the game state of the current frame and appends
@@ -458,31 +458,26 @@ def flat_input_generator(raw_history,
         - current food position (in tile coordinate system)'''
     
     # get most recent raw state
-    raw_state = raw_history[-1]
+    raw_state_current = raw_history[-1]
     
     # --- build quantified board state
-    #   initialize tiled coordinate system
-    board_state = np.zeros((WINDOW_WIDTH,WINDOW_HEIGHT))
-    #   add food
-    #print("Food pos:",raw_state['food_pos'])
-    food_tile_x, food_tile_y = raw_state['food_pos']
-    
-    board_state[food_tile_x,food_tile_y] += FOOD_VALUE
-    #    add snake
-    for (snake_tile_x,snake_tile_y) in raw_state['snake_pos']:
-        # verify tile is on board
-        if (snake_tile_x in range(WINDOW_WIDTH)) and (snake_tile_y in range(WINDOW_HEIGHT)):
-            board_state[snake_tile_x,snake_tile_y] += SNAKE_VALUE
-    # flatten board to vector
-    flat_board_state = board_state.reshape((1,-1))
-    
-    # --- build snake direction state
-    snake_dir = np.array([raw_state['snake_dir']] * 4).reshape((1,-1))
-    flat_direction_state = (DIRECTION_TEMPLATE == snake_dir) * DIRECTION_VALUE
-    
-    # --- combine to total state
-    state = np.concatenate([flat_board_state,
-                            flat_direction_state],
+    #   get relative coordinates to food for current frame and normalize
+    rel_food_pos_current = (np.array(raw_state_current['food_pos']) - np.array(raw_state_current['snake_pos'][0])).reshape((1,-1)) \
+    / np.array([WINDOW_WIDTH_PIXELS,WINDOW_HEIGHT_PIXELS])
+    # get direction coordinates
+    dir_current_raw = raw_state_current['snake_dir']
+    if dir_current_raw == UP:
+        dir_current = [0,1]
+    elif dir_current_raw == DOWN:
+        dir_current = [0,-1]
+    elif dir_current_raw == LEFT:
+        dir_current = [-1,0]
+    elif dir_current_raw == RIGHT:
+        dir_current = [1,0]
+    dir_current = 0.5 * np.array(dir_current).reshape(1,-1)
+    # combine into one input vector
+    state = np.concatenate([rel_food_pos_current,
+                            dir_current],
                             axis=1)
     
     return state
@@ -516,7 +511,7 @@ def build_ai_simulation_tools():
     simulation.'''
 
     # --- build neural net
-    input_size = WINDOW_HEIGHT * WINDOW_WIDTH + np.prod((DIRECTION_TEMPLATE.shape))
+    input_size = N0
     
     neural_net = FFNetwork()
     

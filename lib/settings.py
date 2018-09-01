@@ -32,7 +32,7 @@ LEFT = 'LEFT'
 DOWN = 'DOWN'
 NOTHING = 'NOTHING'
 QUIT_GAME = 'QUIT_GAME'
-SNAKE_INIT_LENGTH = 5
+SNAKE_INIT_LENGTH = 1
 FONT_SIZE = 20
 SCORE_OFF_X = WINDOW_WIDTH_PIXELS - TILE_WIDTH
 SCORE_OFF_Y = TILE_HEIGHT
@@ -42,9 +42,11 @@ MAX_FRAMES = 1000
 SNAKE_VALUE = 2
 FOOD_VALUE = -2
 DIRECTION_VALUE = 10
+N_INPUT_FRAMES = 2
 DIRECTION_TEMPLATE = np.array([DOWN,LEFT,UP,RIGHT]).reshape((1,-1))
 TURN_TEMPLATE = np.array([LEFT,UP,RIGHT]).reshape((1,-1))
-N1 = 100
+N0 = 4
+N1 = 8
 N2 = 3
 APPLY_AI_STEER = {(UP,UP):UP, # (turn_direction, current_direction) -> new_direction
                   (UP,LEFT):LEFT,
@@ -60,6 +62,6 @@ APPLY_AI_STEER = {(UP,UP):UP, # (turn_direction, current_direction) -> new_direc
                   (RIGHT,DOWN):LEFT}
 
 # --- GA constants
-N_GENERATIONS = 30
+N_GENERATIONS = 60
 N_POP = 30
-MUTATION_RATE = 0.5
+MUTATION_RATE = 0.15

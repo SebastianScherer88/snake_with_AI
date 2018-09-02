@@ -1069,7 +1069,7 @@ class FFNetwork(object):
         
     def oneHotY(self,y):
         '''One hot vectorizes a target class index list into a [nData,nClasses] array.'''
-        
+                
         # if first time training on classification data with one-hot enabled, remember ordering of class labels used for training
         if str(type(self.classes_ordered)) == "<class 'NoneType'>":
             self.classes_ordered = np.unique(y).reshape(-1)
@@ -1559,8 +1559,8 @@ class PG(object):
                       learning_rate = 0.01,
                       episode_batch_size = 10,
                       verbose = False,
-                      reward = POLICY_REWARD,
-                      regret = POLICY_REGRET):
+                      reward = 1,
+                      regret = 1):
         '''Trains network using policy gradients based on samples produced by the 
         episode generator function. All eventual simulation are bundled into this
         magic function, which, for every training episode  (= sequence of (state,action) pairs

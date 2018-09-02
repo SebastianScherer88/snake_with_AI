@@ -268,6 +268,7 @@ class Snake_With_AI(object):
                 #   draw new game state
                 if self.visuals:
                     self.draw()
+                    pg.display.flip()
                 
                 #   control speed
                 if self.speed_limit:
@@ -295,11 +296,15 @@ class Snake_With_AI(object):
         # ensure game is in correct mode
         assert(self.using_pg)
         assert(self.using_ai)
-        
+                
         # initialize empty padded state and action history for this episode
         self.initialize_state_history()
         self.initialize_action_history()
         self.n_frames_passed = 0
+        
+        if self.i_episode == 0:
+            self.score = 0
+            self.total_score = 0
                                                                        
         # update episode counter
         self.i_episode += 1
@@ -317,14 +322,14 @@ class Snake_With_AI(object):
         
         # --- (re-)start game loop
         while True:
-            # update frame counter
-            self.n_frames_passed += 1
             # check if max frame number has been reached
             if self.n_frames_passed == self.max_frames:
                 # if no food was found but snake hasnt collided yet, discourage AI form doing this in future
                 self.failed_episode = True
-                self.show_pg_epsiode_commercial_break(self.failed_episode)
-                return -1
+                rl_coeff = -1
+                if self.visuals:
+                    self.show_pg_epsiode_commercial_break(self.failed_episode)
+                break
                 
             # --- record game state and action and add to history of episode
             #   snake pilot commands are produced & processed here
@@ -336,14 +341,18 @@ class Snake_With_AI(object):
             food_found = self.update()
             if food_found:
                 self.failed_epsiode = False
-                self.show_pg_epsiode_commercial_break(self.failed_episode)
-                return 1
+                rl_coeff = 1
+                if self.visuals:
+                    self.show_pg_epsiode_commercial_break(self.failed_episode)
+                break
             
             # check for snake collision
             if self.has_snake_collided() == QUIT_GAME:
                 self.failed_episode = True
-                self.show_pg_epsiode_commercial_break(self.failed_episode)
-                return -1
+                rl_coeff = -1
+                if self.visuals:
+                    self.show_pg_epsiode_commercial_break(self.failed_episode)
+                break
             
             #   draw new game state
             if self.visuals:
@@ -352,6 +361,12 @@ class Snake_With_AI(object):
             #   control speed
             if self.speed_limit:
                 self.clock.tick(self.fps)
+                
+        # return the rl coefficient and the processed states and actions
+        processed_states = self.process_state_history()
+        processed_actions = self.process_action_history()
+        
+        return processed_states, processed_actions, rl_coeff
                 
     def process_state_history(self):
         '''Util function that converts all the raw states currently held in 
@@ -387,14 +402,15 @@ class Snake_With_AI(object):
         billboard_rect = billboard_surf.get_rect()
         billboard_rect.center = (int(WINDOW_WIDTH_PIXELS / 2),int(WINDOW_HEIGHT_PIXELS / 2))
         
-        #   blit message
+        #   blit message and display
         self.screen.blit(billboard_surf,billboard_rect)
+        pg.display.flip()
             
     def apply_pg_ai_steer(self,p_explore):
         '''Util function for AI steering during polcy gradient AI training routine.'''
 
         # exploration or exploitation?
-        lets_go_exploring = np.random.uniform() > p_explore
+        lets_go_exploring = np.random.uniform() < p_explore
         
         # --- explore
         if lets_go_exploring:
@@ -412,6 +428,8 @@ class Snake_With_AI(object):
         # apply random/AI turn
         current_direction = self.snake.direction
         self.snake.direction = APPLY_AI_STEER[(turn,current_direction)]
+        
+        return turn
         
     def handle_snake_food(self):
         '''Function that handles distribution of new food and the snake colliding
@@ -755,7 +773,7 @@ def build_policy_gradient_episode_generator():
     generating function.'''
     
     # build tools for snake simluation
-    neural_net, neural_input_generator, neural_ai = build_ai_simulation_tools
+    neural_net, neural_input_generator, neural_ai = build_ai_simulation_tools()
     
     # create snake simulation in policy gradient mode with above tools
     snake_sim = Snake_With_AI(max_frames = MAX_FRAMES_PG,

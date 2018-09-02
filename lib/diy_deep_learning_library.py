@@ -222,13 +222,13 @@ class FcLayer(object):
         
         return Dcache
         
-    def updateLayerParams(self,Dcache):
+    def updateLayerParams(self,Dcache,direction_coeff = 1):
         # retrieve updates for layer's weights and bias using layer's optimizer
         DeltaWeight, DeltaBias = self.optimizer.get_parameter_updates(Dcache)
         
         # update parameters with respective updates obtained from optimizer
-        self.Weight += DeltaWeight
-        self.bias += DeltaBias
+        self.Weight += direction_coeff * DeltaWeight
+        self.bias += direction_coeff * DeltaBias
         
     def makeReady(self,previousLayer=None,nextLayer=None):
         self.previousLayer = previousLayer
@@ -449,13 +449,13 @@ class ConvLayer(object):
         
         return Dcache
     
-    def updateLayerParams(self,Dcache):
+    def updateLayerParams(self,Dcache,direction_coeff=1):
         # retrieve updates for layer's weights and bias using layer's optimizer
         DeltaWeight, DeltaBias = self.optimizer.get_parameter_updates(Dcache)
         
         # update parameters with respective updates obtained from optimizer
-        self.Weight += DeltaWeight
-        self.bias += DeltaBias
+        self.Weight += direction_coeff * DeltaWeight
+        self.bias += direction_coeff * DeltaBias
     
     def makeReady(self,previousLayer=None,nextLayer=None):
         self.previousLayer = previousLayer
@@ -1130,7 +1130,7 @@ class FFNetwork(object):
             
         return P
         
-    def backwardProp(self,YBatch):
+    def backwardProp(self,YBatch,reinforcement_coeff=1):
         '''Executes one backward propagation through the network. Updates the network's weights.'''
         
         P = self.layers[-1].cache['A']
@@ -1141,7 +1141,8 @@ class FFNetwork(object):
             layerDcache = layer.backwardProp()
             if layer.has_optimizable_params:
                 # where sensible, update parameters
-                layer.updateLayerParams(layerDcache)
+                layer.updateLayerParams(layerDcache,
+                                        direction_coeff=reinforcement_coeff)
             
     def predict(self,X):
         '''If model is trained, performs forward prop and returns the prediction array.'''
@@ -1539,3 +1540,55 @@ class GeneWeightTranslator(object):
         assert(init_genes.shape == (n_pop, self.dna_seq_len))
         
         return init_genes
+    
+#----------------------------------------------------
+# [12] define policy gradient for neural networks wrapper
+#----------------------------------------------------
+        
+class PG(object):
+    
+    def __init__(self,
+                 ffnetwork):
+        
+        self.ffnetwork = ffnetwork
+        
+        
+    def train_network(self,
+                      episode_generator,
+                      n_episodes = 100000,
+                      learning_rate = 0.01,
+                      episode_batch_size = 10,
+                      verbose = False,
+                      reward = POLICY_REWARD,
+                      regret = POLICY_REGRET):
+        '''Trains network using policy gradients based on samples produced by the 
+        episode generator function. All eventual simulation are bundled into this
+        magic function, which, for every training episode  (= sequence of (state,action) pairs
+        up to first non-trivial reward) produces a batch of X, y and one reinforcement coefficient
+        (usually +1 (encouraging behaviour displayed in corresponding sequence)/ -1 
+        (discouraging behaviour displayed in corresponding sequence)).'''
+        
+        for i_episode in range(n_episodes):
+            # psa
+            if verbose:
+                print("Running simulation to generate data | Episode " + str(i_episode+1) + " / " + str(n_episodes) + ".")
+            # create this episodes training data and reinforcement coefficient
+            X_ep, y_ep, r_ep = episode_generator()
+            # convert y_e to one hot encoded class labels
+            Y_ep = self.ffnetwork.oneHotY(y_ep)
+            # apply reward/regret scaling to reinforcment coefficient
+            if r_ep < 0:
+                r_ep *= regret
+            else:
+                r_ep *= reward
+            # --- train network on current batch
+            n_batches = (X_ep.shape[0] // episode_batch_size) + 1
+            if verbose:
+                print("Processing simulation data and updating AI | Episode" + str(i_episode+1) + " / " + str(n_episodes) + ".")
+            for i_batch in range(n_batches):
+                #  forward prop
+                _ = self.ffnetwork.forwardProp(X_ep)
+                # backward prop including parameter updates
+                self.ffnetwork.backwardProp(Y_ep,reinforcement_coeff=r_ep)
+                
+        return self.ffnetwork

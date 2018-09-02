@@ -185,7 +185,8 @@ class Snake_With_AI(object):
             self.max_frames = max_frames # Training routine parameter; sensible unit to guarantee constant
             self.len_history = len_history
             self.state_history = None
-            self.i_episode = 1
+            self.action_history = None
+            self.i_episode = 0
             self.failed_episode = True
             # attach piloting logic encoded in specified ai model
             self.ai = ai
@@ -293,6 +294,12 @@ class Snake_With_AI(object):
         
         # ensure game is in correct mode
         assert(self.using_pg)
+        assert(self.using_ai)
+        
+        # initialize empty padded state and action history for this episode
+        self.initialize_state_history()
+        self.initialize_action_history()
+        self.n_frames_passed = 0
                                                                        
         # update episode counter
         self.i_episode += 1
@@ -310,33 +317,33 @@ class Snake_With_AI(object):
         
         # --- (re-)start game loop
         while True:
-            # if in AI mode, check if max frame number has been reached
-            if self.using_ai:
-                if self.n_frames_passed == self.max_frames:
-                    # if no food was found but snake hasnt collided yet, discourage AI form doing this in future
-                    self.failed_episode = True
-                    self.show_pg_epsiode_commercial_break(self.failed_episode)
-                    return POLICY_DETENTION
+            # update frame counter
+            self.n_frames_passed += 1
+            # check if max frame number has been reached
+            if self.n_frames_passed == self.max_frames:
+                # if no food was found but snake hasnt collided yet, discourage AI form doing this in future
+                self.failed_episode = True
+                self.show_pg_epsiode_commercial_break(self.failed_episode)
+                return -1
                 
-            # record game state and add to history of recent n game states
-            if self.using_ai:
-                self.record_current_state()
-            
-            # snake pilot commands are produced & processed here
-            self.apply_pg_ai_steer(p_exploration)
-            
+            # --- record game state and action and add to history of episode
+            #   snake pilot commands are produced & processed here
+            self.record_current_state()
+            action = self.apply_pg_ai_steer(p_exploration)
+            self.record_current_action(action)
+
             # update sprites - snake position is updated here
             food_found = self.update()
             if food_found:
                 self.failed_epsiode = False
                 self.show_pg_epsiode_commercial_break(self.failed_episode)
-                return POLICY_REWARD
+                return 1
             
             # check for snake collision
             if self.has_snake_collided() == QUIT_GAME:
                 self.failed_episode = True
                 self.show_pg_epsiode_commercial_break(self.failed_episode)
-                return POLICY_DETENTION
+                return -1
             
             #   draw new game state
             if self.visuals:
@@ -345,6 +352,23 @@ class Snake_With_AI(object):
             #   control speed
             if self.speed_limit:
                 self.clock.tick(self.fps)
+                
+    def process_state_history(self):
+        '''Util function that converts all the raw states currently held in 
+        self.state_history to an (n_episode_frames,d_input) array of processed inputs.'''
+        
+        # get processed states (via slices of state history to ensure backwards compat. with GA input processor)
+        hist = self.state_history
+        processed_states = [self.ai_input_generator(hist[:i_end]) for i_end in range(1,len(hist)+1)]
+        X_states = np.array(processed_states).reshape((len(processed_states),-1))
+        
+        return X_states
+    
+    def process_action_history(self):
+        '''Util function that converts all the actions currently held in 
+        self.action_history to an (n_episode_frames,?) array of processed inputs.'''
+        
+        return np.array(self.action_history).reshape((-1,1))
                 
     def show_pg_epsiode_commercial_break(self,
                                          failed):
@@ -366,7 +390,7 @@ class Snake_With_AI(object):
         #   blit message
         self.screen.blit(billboard_surf,billboard_rect)
             
-    def apply_ai_steer(self,p_explore):
+    def apply_pg_ai_steer(self,p_explore):
         '''Util function for AI steering during polcy gradient AI training routine.'''
 
         # exploration or exploitation?
@@ -560,6 +584,14 @@ class Snake_With_AI(object):
                                'snake_dir':LEFT,
                                'food_pos':[0,0],
                                'score':0}] * self.len_history
+    
+    def initialize_action_history(self):
+        '''Util function that initializes the game's raw action history by padding
+        it with self.history_len empty states. This is needed so the AI can make
+        (generic) decisions at the beginning of each game when there are no past
+        game actions.'''
+        
+        self.action_history = [LEFT,] * self.len_history
                     
     def record_current_state(self):
         '''Util function that saves the game state of the current frame and appends
@@ -574,6 +606,17 @@ class Snake_With_AI(object):
         # update and cut down to size
         self.state_history.append(current_state)
         self.state_history = self.state_history[-self.len_history:]
+        
+    def record_current_action(self,
+                              current_action):
+        '''Util function that saves the action of the current frame and appends it to 
+        the the current game's action history. Needed to create raw data which is 
+        then picked up by the ai target generator.'''
+        
+        self.action_history.append(current_action)
+        self.action_history = self.action_history[-self.len_history:]
+        
+        
         
 #-------------------
 # [4] Util function: input_generator
@@ -698,5 +741,33 @@ def build_ai_simulation_cost_function(gene,
                                speed_limit=False).start()
     
     return float(gene_score)
+    
+#--------------------------------------------------------------
+# [8] Util function:  build policy gradient episode generator function
+#--------------------------------------------------------------
+    
+def build_policy_gradient_episode_generator():
+    '''Util function that creates processed AI input data for one episode
+    by running a snake simulation up until the first non-trivial reward and 
+    recording all (state,action) pairs in the process.
+    
+    Returns a handle to the neural net used as AI as well as the acutal
+    generating function.'''
+    
+    # build tools for snake simluation
+    neural_net, neural_input_generator, neural_ai = build_ai_simulation_tools
+    
+    # create snake simulation in policy gradient mode with above tools
+    snake_sim = Snake_With_AI(max_frames = MAX_FRAMES_PG,
+                              ai = neural_ai,
+                              ai_input_generator = neural_input_generator,
+                              len_history = MAX_FRAMES_PG,
+                              using_ga = False,
+                              using_pg = True)
+    
+    # yoink the run episode method for outside use
+    run_snake_episode = partial(snake_sim.run_pg_episode)
+    
+    return neural_net, run_snake_episode
     
     

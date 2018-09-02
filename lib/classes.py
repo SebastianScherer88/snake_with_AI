@@ -146,7 +146,9 @@ class Snake_With_AI(object):
                  ai_input_generator = None,
                  len_history = N_INPUT_FRAMES,
                  visuals = True,
-                 speed_limit = True):
+                 speed_limit = True,
+                 using_ga = True,
+                 using_pg = False):
         
         # --- essential params
         self.fps = fps
@@ -171,14 +173,20 @@ class Snake_With_AI(object):
             assert(all([max_frames != None,
                         ai != None,
                         ai_input_generator != None]))
-            # switch flick
+            # only one of these two methods allowed
+            assert(using_ga != using_pg)
+            # flick switch
             self.using_ai = True
+            self.using_ga = using_ga
+            self.using_pg = using_pg
             # training routing tracking params
             self.looping = True # override potential False; no training routinge makes sense without repetitions
             self.n_frames_passed = None
             self.max_frames = max_frames # Training routine parameter; sensible unit to guarantee constant
             self.len_history = len_history
             self.state_history = None
+            self.i_episode = 1
+            self.failed_episode = True
             # attach piloting logic encoded in specified ai model
             self.ai = ai
             # attach function generating inputs for specified ai model
@@ -275,6 +283,111 @@ class Snake_With_AI(object):
         pg.quit()
         
         return self.total_score
+    
+    def run_pg_episode(self,
+                       p_exploration=P_EXPLORATION):
+        '''Starts a new online learning epsiode that generates and returns a batch
+        for policy gradient based AI training. Either starts new game (if previous 
+        episode ended with failure) or picks up where last episode ended (if previous
+        epsiode ended with success.)'''
+        
+        # ensure game is in correct mode
+        assert(self.using_pg)
+                                                                       
+        # update episode counter
+        self.i_episode += 1
+                                                                       
+        # --- check outcome of previous episode
+        if self.failed_episode:
+            # --- initialize game objects
+            #   snake
+            self.snake = Snake()        
+            #   first food
+            self.food = self.get_new_food_position()
+        else:
+            # reuse last epsiode's snake and food; still attached to game
+            pass
+        
+        # --- (re-)start game loop
+        while True:
+            # if in AI mode, check if max frame number has been reached
+            if self.using_ai:
+                if self.n_frames_passed == self.max_frames:
+                    # if no food was found but snake hasnt collided yet, discourage AI form doing this in future
+                    self.failed_episode = True
+                    self.show_pg_epsiode_commercial_break(self.failed_episode)
+                    return POLICY_DETENTION
+                
+            # record game state and add to history of recent n game states
+            if self.using_ai:
+                self.record_current_state()
+            
+            # snake pilot commands are produced & processed here
+            self.apply_pg_ai_steer(p_exploration)
+            
+            # update sprites - snake position is updated here
+            food_found = self.update()
+            if food_found:
+                self.failed_epsiode = False
+                self.show_pg_epsiode_commercial_break(self.failed_episode)
+                return POLICY_REWARD
+            
+            # check for snake collision
+            if self.has_snake_collided() == QUIT_GAME:
+                self.failed_episode = True
+                self.show_pg_epsiode_commercial_break(self.failed_episode)
+                return POLICY_DETENTION
+            
+            #   draw new game state
+            if self.visuals:
+                self.draw()
+            
+            #   control speed
+            if self.speed_limit:
+                self.clock.tick(self.fps)
+                
+    def show_pg_epsiode_commercial_break(self,
+                                         failed):
+        '''Util function that prints "Updating AI..." to the pygame screen at 
+        appropriate times during policy gradient AI training routine'''
+        
+        # get update message
+        message = "Failed! " * failed + "Success! " * (1 - failed) + "Updating AI..."
+        
+        #   get text surface
+        billboard_surf = self.font.render(message,
+                                      False,
+                                      RED)
+        
+        #   position text on pygame window
+        billboard_rect = billboard_surf.get_rect()
+        billboard_rect.center = (int(WINDOW_WIDTH_PIXELS / 2),int(WINDOW_HEIGHT_PIXELS / 2))
+        
+        #   blit message
+        self.screen.blit(billboard_surf,billboard_rect)
+            
+    def apply_ai_steer(self,p_explore):
+        '''Util function for AI steering during polcy gradient AI training routine.'''
+
+        # exploration or exploitation?
+        lets_go_exploring = np.random.uniform() > p_explore
+        
+        # --- explore
+        if lets_go_exploring:
+            # get random choice
+            turn = np.random.choice(TURN_TEMPLATE.reshape(-1))
+            
+        # --- exploit
+        elif not lets_go_exploring:
+            # get AI choice based on state
+            # generate input for AI from raw game state history
+            ai_input = self.ai_input_generator(self.state_history)
+            # get AI steer
+            turn = ai_turn = self.ai(ai_input)
+            
+        # apply random/AI turn
+        current_direction = self.snake.direction
+        self.snake.direction = APPLY_AI_STEER[(turn,current_direction)]
         
     def handle_snake_food(self):
         '''Function that handles distribution of new food and the snake colliding
@@ -340,7 +453,9 @@ class Snake_With_AI(object):
         self.snake.update()
         
         # food
-        self.handle_snake_food()
+        food_found = self.handle_snake_food()
+        
+        return food_found
     
     def draw(self):
         '''Draws new game state.'''
@@ -372,7 +487,7 @@ class Snake_With_AI(object):
                          score_rect)
         
         # --- total score
-        if self.using_ai:
+        if self.using_ai and self.using_ga:
             #   get text
             score_message = "Total gene's score: " + str(self.total_score)
             #   get text surface
@@ -383,6 +498,22 @@ class Snake_With_AI(object):
             score_rect = score_surf.get_rect()
             score_rect.left = TILE_WIDTH
             score_rect.top = SCORE_OFF_Y
+        
+        self.screen.blit(score_surf,
+                         score_rect)
+        
+        # --- policy gradient episode
+        if self.using_ai and self.using_pg:
+            #   get text
+            episode_message = "Epsiode #: " + str(self.i_episode)
+            #   get text surface
+            episode_surf = self.font.render(episode_message,
+                                          False,
+                                          self.text_color)
+            #   position text surface
+            episode_rect = episode_surf.get_rect()
+            episode_rect.left = TILE_WIDTH
+            episode_rect.top = SCORE_OFF_Y
         
         self.screen.blit(score_surf,
                          score_rect)

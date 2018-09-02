@@ -65,3 +65,9 @@ APPLY_AI_STEER = {(UP,UP):UP, # (turn_direction, current_direction) -> new_direc
 N_GENERATIONS = 60
 N_POP = 30
 MUTATION_RATE = 0.15
+
+# --- PG constants
+N_EPISODES = 1000
+POLICY_REWARD = 1
+POLICY_DETENTION = -1
+P_EXPLORATION = 0.3

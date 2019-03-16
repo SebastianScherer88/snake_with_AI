@@ -43,10 +43,12 @@ FOOD_VALUE = -2
 DIRECTION_VALUE = 10
 N_INPUT_FRAMES = 2
 DIRECTION_TEMPLATE = np.array([DOWN,LEFT,UP,RIGHT]).reshape((1,-1))
-TURN_TEMPLATE = np.array([LEFT,UP,RIGHT]).reshape((1,-1))
+#TURN_TEMPLATE = np.array([LEFT,UP,RIGHT]).reshape((1,-1))
+TURN_TEMPLATE = np.array([LEFT,RIGHT]).reshape((1,-1))
 N0 = 4
 N1 = 8
-N2 = 3
+#N2 = 3
+N2 = 2
 APPLY_AI_STEER = {(UP,UP):UP, # (turn_direction, current_direction) -> new_direction
                   (UP,LEFT):LEFT,
                   (UP,RIGHT):RIGHT,
@@ -67,13 +69,13 @@ N_POP = 30
 MUTATION_RATE = 0.15
 
 # --- PG constants
-PG_LEARNING_RATE = 0.01
-PG_MOMENTUM = 0.99
+PG_LEARNING_RATE = 0.0001
+PG_MOMENTUM = 0
 PG_EPSILON = 0.1223523 # useless param but has to be specified - bug in optimizer class
 PG_REG_PARAM = 0
-PG_BATCH_SIZE = 10
+PG_BATCH_SIZE = 1
 MAX_FRAMES_PG = 40
-N_EPISODES = 50
+N_EPISODES = 50000
 POLICY_REWARD = 1
 POLICY_REGRET = 1
-P_EXPLORATION = 0
+P_EXPLORATION = 0.95

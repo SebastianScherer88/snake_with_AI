@@ -422,12 +422,15 @@ class Snake_With_AI(object):
             # get AI choice based on state
             # generate input for AI from raw game state history
             ai_input = self.ai_input_generator(self.state_history)
+            #print("ai_input:",ai_input)
             # get AI steer
             turn = ai_turn = self.ai(ai_input)
             
         # apply random/AI turn
         current_direction = self.snake.direction
         self.snake.direction = APPLY_AI_STEER[(turn,current_direction)]
+        
+        #print(turn)
         
         return turn
         
@@ -598,10 +601,11 @@ class Snake_With_AI(object):
         (generic) decisions at the beginning of each game when there are no past
         game states.'''
         
-        self.state_history = [{'snake_pos':[0,0],
-                               'snake_dir':LEFT,
-                               'food_pos':[0,0],
-                               'score':0}] * self.len_history
+        #self.state_history = [{'snake_pos':[0,0],
+        #                       'snake_dir':LEFT,
+        #                       'food_pos':[0,0],
+        #                       'score':0}] * self.len_history
+        self.state_history = []
     
     def initialize_action_history(self):
         '''Util function that initializes the game's raw action history by padding
@@ -609,7 +613,8 @@ class Snake_With_AI(object):
         (generic) decisions at the beginning of each game when there are no past
         game actions.'''
         
-        self.action_history = [LEFT,] * self.len_history
+        #self.action_history = [LEFT,] * self.len_history
+        self.action_history = []
                     
     def record_current_state(self):
         '''Util function that saves the game state of the current frame and appends
@@ -659,9 +664,9 @@ def flat_input_generator(raw_history,
     # get direction coordinates
     dir_current_raw = raw_state_current['snake_dir']
     if dir_current_raw == UP:
-        dir_current = [0,1]
-    elif dir_current_raw == DOWN:
         dir_current = [0,-1]
+    elif dir_current_raw == DOWN:
+        dir_current = [0,1]
     elif dir_current_raw == LEFT:
         dir_current = [-1,0]
     elif dir_current_raw == RIGHT:
@@ -684,13 +689,18 @@ def ai_from_ffnetwork(ffnetwork,
     '''Util wrapper around specified FFNetwork that takes an input array of shape (1,d_input)
     and return one of directional constants UP, DOWN, RIGHT or LEFT.'''
     
+    #print(ffnetwork.classes_ordered)
+    
     # verify that network is ready
     assert(ffnetwork.finalState)
     
     # get prediction array
     prediction = ffnetwork.predict(input_state)
+    #print("Classes ordered of ai neual net:",ffnetwork.classes_ordered)
+    
+    #print("prediction:",prediction)
     # get direction
-    direction = TURN_TEMPLATE[0,prediction][0,0]
+    direction = prediction[0][0]
     
     return direction
 
@@ -764,7 +774,8 @@ def build_ai_simulation_cost_function(gene,
 # [8] Util function:  build policy gradient episode generator function
 #--------------------------------------------------------------
     
-def build_policy_gradient_episode_generator():
+def build_policy_gradient_episode_generator(visuals=False,
+                                            speed_limit=False):
     '''Util function that creates processed AI input data for one episode
     by running a snake simulation up until the first non-trivial reward and 
     recording all (state,action) pairs in the process.
@@ -781,7 +792,9 @@ def build_policy_gradient_episode_generator():
                               ai_input_generator = neural_input_generator,
                               len_history = MAX_FRAMES_PG,
                               using_ga = False,
-                              using_pg = True)
+                              using_pg = True,
+                              visuals=visuals,
+                              speed_limit=speed_limit)
     
     # yoink the run episode method for outside use
     run_snake_episode = partial(snake_sim.run_pg_episode)

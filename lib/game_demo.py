@@ -10,7 +10,9 @@ from classes import Snake_With_AI
 
 def main():
     # get new game object
-    new_game = Snake_With_AI()
+    new_game = Snake_With_AI(fps = 15,
+                             use_ai = False,
+                             looping = False)
     
     # start game
     total_score = new_game.start()

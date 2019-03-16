@@ -1154,7 +1154,18 @@ class FFNetwork(object):
         
         P = self.forwardProp(X)
         
-        return np.argmax(P,axis=1).reshape(-1,1)
+        # if classification model, return class array of shape (m,1)
+        if not str(type(self.classes_ordered)) == "<class 'NoneType'>":
+            # get indices (w.r.t classes_ordered ordering) of classes with max cond. prob.
+            class_inds = np.argmax(P,axis=1).reshape(-1)
+            # get predicted class labels in column array
+            P_class = self.classes_ordered[class_inds].reshape(-1,1)
+            
+            return P_class
+        # if regression model, just return P
+        else:
+            return P
+        
     
 #----------------------------------------------------
 # [10] define genetic algorithm
@@ -1559,6 +1570,7 @@ class PG(object):
                       learning_rate = 0.01,
                       episode_batch_size = 10,
                       verbose = False,
+                      verbose_interval = 1000,
                       reward = 1,
                       regret = 1):
         '''Trains network using policy gradients based on samples produced by the 
@@ -1570,7 +1582,7 @@ class PG(object):
         
         for i_episode in range(n_episodes):
             # psa
-            if verbose:
+            if verbose and (i_episode % verbose_interval) == 0:
                 print("Running simulation to generate data | Episode " + str(i_episode+1) + " / " + str(n_episodes) + ".")
             # create this episodes training data and reinforcement coefficient
             X_ep, y_ep, r_ep = episode_generator()
@@ -1582,13 +1594,17 @@ class PG(object):
             else:
                 r_ep *= reward
             # --- train network on current batch
-            n_batches = (X_ep.shape[0] // episode_batch_size) + 1
-            if verbose:
-                print("Processing simulation data and updating AI | Episode" + str(i_episode+1) + " / " + str(n_episodes) + ".")
-            for i_batch in range(n_batches):
+            if verbose and (i_episode % verbose_interval) == 0:
+                print("Processing simulation data and updating AI | Episode " + str(i_episode+1) + " / " + str(n_episodes) + ".")
+            i_batch = 0
+            for X_batch, Y_batch, n_batches in self.ffnetwork.getBatches(X_ep,Y_ep,episode_batch_size):
                 #  forward prop
-                _ = self.ffnetwork.forwardProp(X_ep)
+                _ = self.ffnetwork.forwardProp(X_batch)
                 # backward prop including parameter updates
-                self.ffnetwork.backwardProp(Y_ep,reinforcement_coeff=r_ep)
+                self.ffnetwork.backwardProp(Y_batch,reinforcement_coeff=r_ep)
+                i_batch += 1
+                if verbose and (i_episode % verbose_interval) == 0:
+                    print("AI updated using batch " + str(i_batch) + " with batch size " \
+                          + str(X_batch.shape[0]) + " | Episode " + str(i_episode+1) + " / " + str(n_episodes) + ".")
                 
         return self.ffnetwork

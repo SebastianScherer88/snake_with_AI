@@ -23,8 +23,10 @@ import numpy as np
 # [1] Build snake simulator tools
 #--------------------------------------------------------------
 
+# build network policy gradient training tools
 neural_net, episode_generator = build_policy_gradient_episode_generator()
 
+# manually initialize network's layers' weight optimizers
 neural_net.initialize_layer_optimizers('sgd',
                                        eta=PG_LEARNING_RATE,
                                        gamma=PG_MOMENTUM,
@@ -32,13 +34,16 @@ neural_net.initialize_layer_optimizers('sgd',
                                        lamda=PG_REG_PARAM,
                                        batchSize=PG_BATCH_SIZE)
 
+# manually initialize ordered class array for classification model using turn template
+neural_net.oneHotY(TURN_TEMPLATE)
+
 #--------------------------------------------------------------
 # [2] Creat policy gradient network training wrapper and train AI
 #--------------------------------------------------------------
 
 pg_coach = PG(neural_net)
 
-pg_coach.train_network(episode_generator,
+trained_net = pg_coach.train_network(episode_generator,
                       n_episodes = N_EPISODES,
                       learning_rate = PG_LEARNING_RATE,
                       episode_batch_size = PG_BATCH_SIZE,
@@ -51,11 +56,11 @@ pg_coach.train_network(episode_generator,
 #--------------------------------------------------------------
 
 neural_ai = partial(ai_from_ffnetwork,
-                    neural_net)
+                    trained_net)
 
 neural_input_generator = flat_input_generator
 
-Snake_With_AI(fps = 15,
+Snake_With_AI(fps = 5,
                  looping = True,
                  use_ai = True,
                  max_frames = 1000,

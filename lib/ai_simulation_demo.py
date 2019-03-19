@@ -21,7 +21,7 @@ from settings import *
 # [1] Build snake piloting network
 #----------------------------------------------------------------------
 
-input_size = WINDOW_HEIGHT * WINDOW_WIDTH + 4
+input_size = 4#WINDOW_HEIGHT * WINDOW_WIDTH + 4
 
 neural_net = FFNetwork()
 
@@ -29,13 +29,17 @@ neural_net = FFNetwork()
 X_sample = np.random.normal(size=(10,input_size))
 
 n1 = 100
-n2 = 3
+n2 = 2
 
 neural_net.addFCLayer(n1,activation='tanh')
 neural_net.addFCLayer(n2,activation='softmax')
 
 neural_net.fixateNetwork(X_sample)
 neural_net.trained = True
+
+
+# manually initialize ordered class array for classification model using turn template
+neural_net.oneHotY(TURN_TEMPLATE)
 
 print(neural_net)
 
@@ -63,6 +67,7 @@ len_history = 1
 
 # --- start AI simulation
 snake_with_ai = Snake_With_AI(fps = fps,
+                              looping = True,
                               use_ai = True,
                               max_frames = max_frames,
                               ai = neural_ai,

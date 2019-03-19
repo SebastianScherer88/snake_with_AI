@@ -61,7 +61,7 @@ neural_ai = partial(ai_from_ffnetwork,neural_net)
 #    max frames
 max_frames = 500
 #   fps
-fps = 10
+fps = FPS
 #   length of game state history needed
 len_history = 1
 

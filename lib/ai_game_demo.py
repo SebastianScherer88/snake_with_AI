@@ -21,7 +21,7 @@ from settings import *
 # [1] Build snake piloting network
 #----------------------------------------------------------------------
 
-input_size = WINDOW_HEIGHT * WINDOW_WIDTH + np.prod((DIRECTION_TEMPLATE.shape))
+input_size = 4#WINDOW_HEIGHT * WINDOW_WIDTH + np.prod((DIRECTION_TEMPLATE.shape))
 
 neural_net = FFNetwork()
 
@@ -32,7 +32,7 @@ n1 = 100
 dropoutRate1 = 0.4
 n2 = 100
 dropoutRate2 = 0.4
-n3 = 4
+n3 = 2
 
 neural_net.addFCLayer(n1,activation='tanh')
 neural_net.addDropoutLayer(dropoutRate1)
@@ -42,6 +42,9 @@ neural_net.addFCLayer(n3,activation='softmax')
 
 neural_net.fixateNetwork(X_sample)
 neural_net.trained = True
+
+# manually initialize ordered class array for classification model using turn template
+neural_net.oneHotY(TURN_TEMPLATE)
 
 print(neural_net)
 

@@ -422,7 +422,7 @@ class Snake_With_AI(object):
             # get AI choice based on state
             # generate input for AI from raw game state history
             ai_input = self.ai_input_generator(self.state_history)
-            print("ai_input:",ai_input)
+            #print("ai_input:",ai_input)
             # get AI steer
             turn = ai_turn = self.ai(ai_input)
             
